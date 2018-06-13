@@ -1,6 +1,6 @@
 *.rda
-._*
-*.pdf
 *.png
-LSF
 *.jpeg
+*.pdf
+LSF
+LSF/*
