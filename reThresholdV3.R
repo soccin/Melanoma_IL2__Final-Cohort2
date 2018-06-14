@@ -9,8 +9,9 @@ require(pROC)
 source("Halo/loadHaloObjectFiles.R")
 
 source("reThresholdFuncs.R")
+source("getAllCombinations.R")
 
-args=commandArgs(trailing=T)
+args <- commandArgs(trailing=T)
 doExclusions=TRUE
 i=1
 dd=loadHaloObjFile(args[i],exclude=doExclusions)
@@ -51,15 +52,23 @@ pltFile=cc("NewThresholdV3/thresholdROCCurves",
     paste0(samples,collapse=","),
     ".pdf")
 
-if(!interactive()) pdf(file=pltFile,width=11,height=8.5)
+if(!interactive()) pdf(file=pltFile,width=8.5,height=11)
+
+omar=par()$mar
 
 roc.stats.all=list()
+
+if(interactive()) stop("BreakPoint-Alpha")
 
 for(sample in samples) {
     spots=dx %>% filter(Sample==sample) %>% distinct(SPOT) %>% pull(SPOT)
     for(spot in spots) {
-        maxAuc=0
-        roc.stats=list()
+
+        mInten=dd %>%
+            filter(Sample==sample & SPOT==spot & Marker==markerPos & ValueType=="Intensity") %>%
+            pull(Value)
+        amInten=asinh(mInten)
+
         cat(sample,",",spot,"\n")
         tbl=dd %>%
             filter(Sample==sample & SPOT==spot, ValueType=="Positive") %>%
@@ -68,44 +77,51 @@ for(sample in samples) {
             arrange(desc(n)) %>%
             filter(Marker %in% c(markerPos,markersToTest))
 
-        layout(rbind(c(1,2,3),c(4,5,5)))
-        par(pty='s')
+        roc.stats=list()
+        newThetas=c()
+        par(mfrow=c(5,2))
 
-        for(markerNeg in markersToTest) {
+        allMarkerNegCombinations=getAllCombinations(markersToTest)
+        nCombs=len(allMarkerNegCombinations)
+        for(markerNeg in allMarkerNegCombinations) {
             cat("testing",markerNeg,"  ")
             dff=dd %>% filter(Sample==sample & SPOT==spot)
             ss=try({d.roc=getROCMulti(dff,markerPos,markerNeg)})
             if(class(ss)=="roc") {
                 stats=getROCStats(sample,spot,markerPos,markerNeg,d.roc)
 
-                roc.stats[[len(roc.stats)+1]]=stats
+                newStatI=len(roc.stats)+1
+                roc.stats[[newStatI]]=stats
 
                 cat("AUC =",stats$auc,"\n")
-                if(stats$auc>maxAuc) {
+
+                if(!roc.stats[[newStatI]]$thetaOpt %in% newThetas |
+                    markerNeg==allMarkerNegCombinations[nCombs]) {
+                    newThetas=c(newThetas,roc.stats[[newStatI]]$thetaOpt)
+                    par(pty='s')
                     plot.roc.1(d.roc,markerPos,markerNeg)
-                    if(maxAuc==0) {
-                        text(0.1,0,paste0(sample,", ",spot),xpd=T,cex=1.4)
+                    par(pty="m")
+                    plot(density(amInten,from=min(amInten),to=max(amInten)),
+                        main=paste(markerPos,markerNeg,sample,spot),
+                        xlab="asinh(Intensity)")
+                    abline(v=asinh(stats$thetaOpt),col="darkgreen",lwd=2,lty=2)
+                    abline(v=asinh(thetas[[paste(sample,markerPos,sep=":")]]),col="darkred",lwd=2,lty=2)
+                    abline(v=mean(amInten),lty=2,lwd=2,col=8)
+                    rug(asinh(d.roc$controls),col="blue",lwd=2)
+                    if(markerNeg==allMarkerNegCombinations[nCombs]) {
+                        thetaOpt <- roc.stats %>% 
+                                        bind_rows %>% 
+                                        arrange(desc(auc)) %>% 
+                                        slice(1) %>% 
+                                        pull(thetaOpt)
+                        abline(v=asinh(thetaOpt),col="lightgreen",lwd=2,lty=2)
                     }
-                    maxAuc=stats$auc
+
                 }
             }
         }
 
-        mInten=dd %>%
-            filter(Sample==sample & SPOT==spot & Marker==markerPos & ValueType=="Intensity") %>%
-            pull(Value)
-        amInten=asinh(mInten)
-
-        statsMaxAuc=roc.stats[[which.max(sapply(roc.stats,function(x){x$auc}))]]
         roc.stats.all=c(roc.stats.all,roc.stats)
-
-        par(pty="m")
-        plot(density(amInten,from=min(amInten),to=max(amInten)),
-            main=paste(markerPos,"CD3",sample,spot),
-            xlab="asinh(Intensity)")
-        abline(v=asinh(statsMaxAuc$thetaOpt),col="darkgreen",lwd=2,lty=2)
-        abline(v=asinh(thetas[[paste(sample,markerPos,sep=":")]]),col="darkred",lwd=2,lty=2)
-        abline(v=mean(amInten),lty=2,lwd=2,col=8)
 
     }
 }
