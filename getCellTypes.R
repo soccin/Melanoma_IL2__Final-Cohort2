@@ -5,7 +5,7 @@ require(fs)
 getIdentityMarkers<-function() {
     markerMetaFile=dir_ls("meta",regex="/[A-Za-z].*_MarkerDescriptions.xlsx")
     read_xlsx(markerMetaFile) %>%
-        filter(Cell_Type=="X") %>%
+        filter(Cell_Type %in% c("X","x")) %>%
         pull(Marker_name) %>%
         sort
 }
