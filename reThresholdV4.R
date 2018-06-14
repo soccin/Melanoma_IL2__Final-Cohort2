@@ -104,6 +104,7 @@ for(sample in samples) {
         for(markerNeg in allMarkerNegCombinations) {
             cat("testing",markerNeg,"  ")
             dff=dd %>% filter(Sample==sample & SPOT==spot)
+            numDAPI=dff %>% filter(Marker=="DAPI" & ValueType=="Positive") %>% nrow(.)
             ss=try({d.roc=getROCMulti(dff,markerPos,markerNeg,dblPosMarker)})
             if(class(ss)=="roc") {
                 stats=getROCStats(sample,spot,markerPos,markerNeg,d.roc)
@@ -122,8 +123,12 @@ for(sample in samples) {
                     par(pty='s')
                     plot.roc.1(d.roc,markerPos,markerNeg)
                     par(pty="m")
+
+
                     plot(density(amInten,from=min(amInten),to=max(amInten)),
-                        main=paste(markerPos,markerNeg,sample,spot),
+                        main=paste(markerPos,markerNeg,sample,spot,"\n",
+                            paste0("nDAPI =",numDAPI," [SOX10+:",
+                            stats$numCases,",negC:",stats$numControls,"]")),
                         xlab="asinh(Intensity)", xlim=c(0,asinh(xMax)))
                     abline(v=asinh(stats$thetaOpt),col="darkgreen",lwd=2,lty=2)
                     abline(v=asinh(thetas[[paste(sample,markerPos,sep=":")]]),col="darkred",lwd=2,lty=2)
@@ -153,5 +158,5 @@ roc.tbl=bind_rows(roc.stats.all)
 write_csv(roc.tbl,
     file.path(oDir,cc("rocStats",paste0(samples,collapse=","),markerPos,".csv")))
 write_csv(intensityStats,
-    file.path(cc("intensityStats",paste0(samples,collapse=","),markerPos,".csv")))
+    file.path(oDir,cc("intensityStats",paste0(samples,collapse=","),markerPos,".csv")))
 
