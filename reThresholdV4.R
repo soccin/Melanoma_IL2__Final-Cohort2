@@ -23,11 +23,14 @@ if(args[1]=="NULL") {
 }
 args=args[-1]
 
+markersToTest=scan(cc("reThresholdMarkers_",markerPos,".txt"),"")
+markersToTestStr=paste0(markersToTest,collapse=",")
+
+oDir=file.path("NewThresholdV4",cc(markerPos,dblPosMarker),markersToTestStr)
+dir.create(oDir,showWarnings=F,recursive=T)
+
 i=1
 dd=loadHaloObjFile(args[i],exclude=doExclusions)
-
-oDir=file.path("NewThresholdV3",cc(markerPos,dblPosMarker))
-dir.create(oDir,showWarnings=F)
 
 dx=dd %>%
     select(Sample,SPOT,UUID,Marker,ValueType,Value) %>%
@@ -56,8 +59,6 @@ studyName="MelanomaIL2_Final_C2"
 
 samples=dx %>% distinct(Sample) %>% pull(Sample)
 
-markersToTest=scan(cc("reThresholdMarkers_",markerPos,".txt"),"")
-
 pltFile=file.path(oDir,cc("thresholdROCCurves",
     markerPos,
     paste0(samples,collapse=","),
@@ -72,7 +73,7 @@ roc.stats.all=list()
 if(interactive()) {
     sample=samples[1]
     spot=1
-    stop("BreakPoint-Alpha")
+    #stop("BreakPoint-Alpha")
 }
 
 for(sample in samples) {
@@ -114,6 +115,19 @@ for(sample in samples) {
             ss=try({d.roc=getROCMulti(dff,markerPos,markerNeg,dblPosMarker)})
             if(class(ss)=="roc") {
                 stats=getROCStats(sample,spot,markerPos,markerNeg,d.roc)
+                stats$dblPosMarker=ifelse(is.null(dblPosMarker),"NULL",dblPosMarker)
+
+
+
+                numPOSOpt <- dff %>%
+                    filter(Marker=="SOX10" & ValueType=="Intensity" & Value>stats$thetaOpt) %>%
+                    nrow(.)
+                delta=round(100*(numPOSOpt-numPOS)/numPOS,2)
+
+                stats$numDAPI=numDAPI
+                stats$numPOS=numPOS
+                stats$numPOSOpt=numPOSOpt
+                stats$PCT.Delta=delta
 
                 newStatI=len(roc.stats)+1
                 roc.stats[[newStatI]]=stats
@@ -123,17 +137,15 @@ for(sample in samples) {
                 # if(!roc.stats[[newStatI]]$thetaOpt %in% newThetas |
                 #     markerNeg==allMarkerNegCombinations[nCombs]) {
                 if(stats$auc>aucMax |
-                    markerNeg==allMarkerNegCombinations[nCombs]) {
+                    markerNeg==allMarkerNegCombinations[nCombs] |
+                    markerNeg=="CD20:CD8:CD3:PCK26"
+                    ) {
                     aucMax=stats$auc
                     #newThetas=c(newThetas,roc.stats[[newStatI]]$thetaOpt)
                     par(pty='s')
                     plot.roc.1(d.roc,markerPos,markerNeg)
                     par(pty="m")
 
-
-                    numPOSOpt <- dff %>%
-                        filter(Marker=="SOX10" & ValueType=="Intensity" & Value>stats$thetaOpt) %>%
-                        nrow(.)
 
                     subLine=paste0("[pos:", stats$numCases,",neg:",stats$numControls,"]")
                     dataLine=paste0("nSOX10=",numPOS,"/",numDAPI,
