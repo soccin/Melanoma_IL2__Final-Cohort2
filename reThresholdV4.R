@@ -69,7 +69,11 @@ omar=par()$mar
 
 roc.stats.all=list()
 
-if(interactive()) stop("BreakPoint-Alpha")
+if(interactive()) {
+    sample=samples[1]
+    spot=1
+    stop("BreakPoint-Alpha")
+}
 
 for(sample in samples) {
     spots=dx %>% filter(Sample==sample) %>% distinct(SPOT) %>% pull(SPOT)
@@ -95,7 +99,7 @@ for(sample in samples) {
         if(interactive()) {
             par(mfrow=c(3,2))
         } else {
-            par(mfrow=c(5,2))
+            par(mfrow=c(3,2))
         }
 
         allMarkerNegCombinations=getAllCombinations(markersToTest)
@@ -105,6 +109,8 @@ for(sample in samples) {
             cat("testing",markerNeg,"  ")
             dff=dd %>% filter(Sample==sample & SPOT==spot)
             numDAPI=dff %>% filter(Marker=="DAPI" & ValueType=="Positive") %>% nrow(.)
+            numPOS=dff %>% filter(Marker==markerPos & ValueType=="Positive" & Value==1) %>% nrow(.)
+
             ss=try({d.roc=getROCMulti(dff,markerPos,markerNeg,dblPosMarker)})
             if(class(ss)=="roc") {
                 stats=getROCStats(sample,spot,markerPos,markerNeg,d.roc)
@@ -125,14 +131,23 @@ for(sample in samples) {
                     par(pty="m")
 
 
+                    numPOSOpt <- dff %>%
+                        filter(Marker=="SOX10" & ValueType=="Intensity" & Value>stats$thetaOpt) %>%
+                        nrow(.)
+
+                    subLine=paste0("[pos:", stats$numCases,",neg:",stats$numControls,"]")
+                    dataLine=paste0("nSOX10=",numPOS,"/",numDAPI,
+                                "-->",numPOSOpt,"(",
+                                round(100*(numPOSOpt-numPOS)/numPOS,2),
+                                "%)")
+
                     plot(density(amInten,from=min(amInten),to=max(amInten)),
-                        main=paste(markerPos,markerNeg,sample,spot,"\n",
-                            paste0("nDAPI =",numDAPI," [SOX10+:",
-                            stats$numCases,",negC:",stats$numControls,"]")),
+                        main=paste(markerPos,markerNeg,sample,spot,"\n",dataLine),
+                        sub=subLine,
                         xlab="asinh(Intensity)", xlim=c(0,asinh(xMax)))
-                    abline(v=asinh(stats$thetaOpt),col="darkgreen",lwd=2,lty=2)
+                    abline(v=asinh(stats$thetaOpt),col="darkgreen",lwd=4,lty=2)
                     abline(v=asinh(thetas[[paste(sample,markerPos,sep=":")]]),col="darkred",lwd=2,lty=2)
-                    abline(v=mean(amInten),lty=2,lwd=2,col=8)
+                    #abline(v=mean(amInten),lty=2,lwd=2,col=8)
                     rug(asinh(d.roc$controls),col="blue",lwd=2)
                     if(markerNeg==allMarkerNegCombinations[nCombs]) {
                         thetaOpt <- roc.stats %>%

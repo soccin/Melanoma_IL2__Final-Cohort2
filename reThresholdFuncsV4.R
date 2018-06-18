@@ -50,7 +50,9 @@ getROCMulti <- function(df,markerPos,markerNegsStr,dblPosMarker=NULL) {
                 TRUE ~ "POS"))
 
     if(!is.null(dblPosMarker)) {
-        singlePosIdx=dt$category=="POS" & dt[[cc(dblPosMarker,"Positive")]]==0
+        singlePosIdx=dt$category=="POS" &
+            dt$posPositive==0 &
+            dt[[cc(dblPosMarker,"Positive")]]==0
         dt$category[singlePosIdx] <- "NEG"
     }
 
@@ -81,7 +83,7 @@ getROCStats <- function(sample,spot,markerPos,markerNegs,d.roc) {
         sensOpt=mean(coords(d.roc,theta1,"t","se")),
         precOpt=mean(coords(d.roc,theta1,"t","prec")),
         accOpt=mean(coords(d.roc,theta1,"t","acc")),
-        theta0=asinh(thetas[paste(sample,markerPos,sep=":")]),
+        asinhThetaOrig=asinh(thetas[paste(sample,markerPos,sep=":")]),
         thetaOrig=thetas[paste(sample,markerPos,sep=":")],
         spec0=mean(coords(d.roc,theta0,"t","sp")),
         sens0=mean(coords(d.roc,theta0,"t","se")),
