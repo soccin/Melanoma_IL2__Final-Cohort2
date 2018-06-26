@@ -161,6 +161,7 @@ for(sample in samples) {
                     abline(v=asinh(thetas[[paste(sample,markerPos,sep=":")]]),col="darkred",lwd=2,lty=2)
                     #abline(v=mean(amInten),lty=2,lwd=2,col=8)
                     rug(asinh(d.roc$controls),col="blue",lwd=2)
+                    rug(asinh(d.roc$cases),col="red",lwd=2,line=-1)
                     if(markerNeg==allMarkerNegCombinations[nCombs]) {
                         thetaOpt <- roc.stats %>%
                                         bind_rows %>%

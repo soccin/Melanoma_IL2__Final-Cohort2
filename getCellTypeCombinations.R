@@ -28,8 +28,9 @@ tbl$MarkerSig=tbl %>%
 sample=tbl$Sample[1]
 
 if(doExclusions) {
-    write_csv(tbl,cc("cellTypeCombinations",sample,".csv"))
+    write_csv(tbl,cc("cellTypeCombinations",sample,"ReThreshold.csv"))
 } else {
-    write_csv(tbl,cc("cellTypeCombinations","NoExclusions",sample,".csv"))
+    stop("STOP DOING THIS")
+    #write_csv(tbl,cc("cellTypeCombinations","NoExclusions",sample,".csv"))
 }
 

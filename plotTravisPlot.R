@@ -1,0 +1,236 @@
+source("getCellTypes.R")
+source("getThresholds.R")
+source("Halo/loadHaloObjectFiles.R")
+
+plotMarkerDensitySample <- function(dIf,marker,thresholds=NULL) {
+    dIf[["MARKER__"]] <- dIf[[marker]]
+    dodge <- position_dodge(width=1)
+    p <- ggplot(dIf,aes(x=Sample,y=asinh(MARKER__),fill=CellType)) +
+        geom_violin(position=dodge,scale="width") +
+        geom_boxplot(position=dodge,width=.05,outlier.shape=NA) +
+        ylab(paste0("asinh(",marker,")")) +
+        ggtitle(paste(marker,"by Sample")) +
+        coord_flip() +
+        theme(legend.position="bottom")
+
+    if(!is.null(thresholds)) {
+        aThetas <- asinh(thresholds)
+        for(ai in seq(names(aThetas)))
+            p <- p+annotate('segment',alpha=0.25,size=1,
+                x=ai-.495,
+                xend=ai+.495,
+                y=aThetas[ai],
+                yend=aThetas[ai])
+    }
+    p
+}
+
+x11 <- function (...) grDevices::x11(...,type='cairo')
+
+
+###############################################################################
+#if(interactive()) stop("INCLUDE")
+###############################################################################
+require(tidyverse)
+require(ggplot2)
+require(yarrr)
+options( java.parameters = c("-Xss2560k", "-Xmx8g") )
+require(xlsx)
+
+args <- commandArgs(trailing=T)
+
+dd=args %>% map(readRDS)
+
+if(interactive()) dd.o=dd
+
+dd <- bind_rows(dd) %>%
+    select(Sample,SPOT,UUID,Marker,ValueType,Value) %>%
+    mutate(fSPOT=as.factor(SPOT))
+
+markers <- dd %>% distinct(Marker) %>% pull
+samples <- dd %>% distinct(Sample) %>% pull
+thetas <- getThresholds(dd)
+
+dd <- getCellTypes(dd)
+
+dI <- dd %>%
+    unite(MVT,Marker,ValueType) %>%
+    spread(MVT,Value)
+
+
+
+stop("BREAK_A")
+
+
+
+
+thetaMI=thetas[paste0(sample,":",mi)]
+dI[[mi]]=sinh(1)*dI[[mi]]/thetaMI
+
+dI %>% select(Sample,SPOT,mi) %>% ggplot(aes(x=as.factor(SPOT),y=asinh(CD3)),fill=SPOT) + geom_violin() + geom_boxplot(width=.25,outlier.shape=NA,fill="#cccccc",alpha=.1)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+pMarker <- "CD25"
+dI %<>% mutate(CD25.Norm=sinh(1)*CD25/thetas[paste0(Sample,":CD25")])
+
+tCells <- scan("cellTypesTCells","")
+tCells <- setdiff(tCells,"CD3,CD8,FOXP3")
+mThetas <- thetas[grepl("CD25",names(thetas))]
+names(mThetas) <- gsub(":.*","",names(mThetas))
+norm.mThetas <- unlist(lapply(mThetas,function(x){sinh(1)}))
+
+x11  <-  function (...) grDevices::x11(...,type='cairo')
+if(interactive()) {
+    x11()
+} else {
+#    pdf(file=paste0("markerDensity_All_",pMarker,"_.pdf"),width=11,height=8.5)
+    pdir <- file.path("plots/markerDensity",gsub(".rda","",basename(args[1])))
+    cat("plot directory =",pdir,"\n")
+    dir_create(pdir)
+
+    png(file=file.path(pdir,cc(pMarker,"%02d.png")),width=11,height=8.5,
+        res=100,pointsize=10,type="cairo",units="in")
+
+}
+
+
+# plotMarkerDensitySample(dI %>% filter(CellType %in% tCells),"CD25",mThetas)
+# plotMarkerDensitySample(dI %>% filter(CellType %in% tCells),"CD25.Norm",norm.mThetas)
+# dIf %>% filter(Sample==sampleName) %>% ggplot(aes(x=factor(SPOT),asinh(CD25.Norm),fill=CellType)) + geom_violin(position=dodge,scale="width")
+
+
+dIf <- dI %>% filter(CellType %in% tCells)
+yRng <- dIf %$% asinh(range(CD25.Norm))
+
+# pirateplot(data=dIf,formula=asinh(CD25) ~ CellType + Sample,
+#         avg.line.fun=median,inf.method="iqr",cex.names=.7,
+#         main="CD25 RAW")
+# legend("topleft",sort(tCells),fill=piratepal("basel",trans=.5))
+
+# pirateplot(data=dIf,formula=asinh(CD25.Norm) ~ CellType + Sample,
+#         avg.line.fun=median,inf.method="iqr",cex.names=.7,
+#         main="CD25 Normalized\n[asinh(Threshold)=1]",ylim=yRng)
+# legend("topleft",sort(tCells),fill=piratepal("basel",trans=.5))
+
+nFOV <- 5
+samples <- dIf %>% distinct(Sample) %>% pull(Sample)
+for(sample in samples) {
+    spots <- dIf %>% filter(Sample==sample) %>% distinct(SPOT) %>% pull(SPOT) %>% sort
+
+    pirateplot(data=dIf %>% filter(Sample==sample),formula=asinh(CD25.Norm) ~ CellType,
+        avg.line.fun=median,inf.method="iqr",cex.names=.7,
+        ylim=yRng,main=paste("Sample",sample))
+    legend("topleft",sort(tCells),fill=piratepal("basel",trans=.5))
+
+    # while(len(spots)>0) {
+    #     if(len(spots)>nFOV) {
+    #         spotI <- spots[1:nFOV]
+    #         spots <- spots[-(1:nFOV)]
+    #     } else {
+    #         spotI <- spots
+    #         spots <- c()
+    #     }
+    #     print(paste(sample,paste0(spotI,collapse=",")))
+    #     dIfS=dIf %>% filter(Sample==sample & SPOT %in% spotI)
+    #     try({
+    #      pirateplot(data=dIfS,formula=asinh(CD25.Norm) ~ CellType + SPOT,
+    #         avg.line.fun=median,inf.method="iqr",cex.names=.7,ylim=yRng,
+    #         main=paste("Sample",sample,"\nFOVs",paste0(spotI,collapse=",")));
+    #     legend("topleft",sort(tCells),fill=piratepal("basel",trans=.5))
+    #         }
+    #         )
+    # }
+}
+
+countTable <- dIf %>% count(Sample,SPOT,CellType) %>% spread(CellType,n)
+write.xlsx(as.data.frame(countTable),paste0("countTable",pMarker,".xlsx"),row.names=F,
+    sheet="All")
+countTablePos <- dIf %>% filter(asinh(CD25.Norm)>1) %>% count(Sample,SPOT,CellType) %>% spread(CellType,n)
+write.xlsx(as.data.frame(countTablePos),paste0("countTable",pMarker,".xlsx"),row.names=F,
+    append=T,sheet="PositiveOnly")
+
+require(pheatmap)
+
+nMedian <- function(x,N=10){ifelse(len(x)<N,NA,median(x))}
+
+mm1 <- dd %>%
+    filter(Marker==pMarker) %>%
+    filter(CellType %in% tCells) %>%
+    spread(ValueType,Value) %>%
+    filter(Positive==1) %>%
+    mutate(Intensity.Norm=sinh(1)*Intensity/thetas[paste0(Sample,":CD25")])
+
+saveRDS(mm1,file.path(pdir,"markerMedianMatrix1.rda"))
+
+mmSS=mm1 %>%
+    unite(SampleSpot,Sample,SPOT) %>%
+    group_by(SampleSpot,CellType) %>%
+    summarize(Median.Norm.Intensity=nMedian(Intensity.Norm)) %>%
+    spread(CellType,Median.Norm.Intensity) %>%
+    mutate_all(funs(replace(., is.na(.), 0))) %>%
+    data.frame %>%
+    column_to_rownames("SampleSpot") %>%
+    as.matrix
+
+mmS=mm1 %>%
+    group_by(Sample,CellType) %>%
+    summarize(Median.Norm.Intensity=nMedian(Intensity.Norm)) %>%
+    spread(CellType,Median.Norm.Intensity) %>%
+    mutate_all(funs(replace(., is.na(.), 0))) %>%
+    data.frame %>%
+    column_to_rownames("Sample") %>%
+    as.matrix
+
+# col2=c('#e0e0e0','#f7fbff','#deebf7','#c6dbef','#9ecae1','#6baed6',
+#         '#4292c6','#2171b5','#08519c','#08306b')
+
+# purple
+# col2=c('#e0e0e0'
+# "#fcfbfd",
+# "#efedf5",
+# "#dadaeb",
+# "#bcbddc",
+# "#9e9ac8",
+# "#807dba",
+# "#6a51a3",
+# "#54278f",
+# "#3f007d")
+
+#orange
+col2 <- c('#e0e0e0',
+"#fff5eb",
+"#fee6ce",
+"#fdd0a2",
+"#fdae6b",
+"#fd8d3c",
+"#f16913",
+"#d94801",
+"#a63603",
+"#7f2704")
+
+mm=mmS
+
+ncols <- len(col2)
+breaks <- c(0,(seq(ncols)-1)*((max(mm)-1)/(ncols-1))+1)
+
+if(!interactive()) pdf(file=file.path(pdir,cc("heatmap",pMarker,".pdf")),width=11,height=8.5)
+pph <- pheatmap(t(mm),col=col2,breaks=breaks)
+if(!interactive()) dev.off()
+
+if(!interactive()) dev.off()
+
+write_csv(as.data.frame(mm),file.path(pdir,"markerMedianMatrix.csv"))
+
