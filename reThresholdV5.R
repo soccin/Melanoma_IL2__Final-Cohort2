@@ -8,7 +8,7 @@ require(pROC)
 
 source("Halo/loadHaloObjectFiles.R")
 
-source("reThresholdFuncsV4.R")
+source("reThresholdFuncsV5.R")
 source("getAllCombinations.R")
 
 markerPos="SOX10"
@@ -26,7 +26,7 @@ args=args[-1]
 markersToTest=scan(cc("reThresholdMarkers_",markerPos,".txt"),"")
 markersToTestStr=paste0(markersToTest,collapse=",")
 
-oDir=file.path("NewThresholdV4",cc(markerPos,dblPosMarker),markersToTestStr)
+oDir=file.path("NewThresholdV5",cc(markerPos,dblPosMarker),markersToTestStr)
 dir.create(oDir,showWarnings=F,recursive=T)
 
 i=1
