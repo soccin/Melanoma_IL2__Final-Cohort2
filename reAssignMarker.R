@@ -46,12 +46,28 @@ dx=dd %>%
 dx$superNeg=dx %>% select(cc(negativeMarkers,"Positive")) %>% apply(.,1,function(x){all(x==0)})
 dx=dx %>% select(-matches("_Positive"),SOX10_Positive)
 
-dx <- left_join(dx,newThetas %>%
-    select(Sample,Spot,thetaNew)) %>%
-    mutate(SOX10_PositiveNew=case_when(
-        SOX10_Intensity>thetaNew & superNeg ~ 1,
-        SOX10_Intensity>thetaNew ~ SOX10_Positive,
-        T ~ 0))
+RULE=2
+
+if(RULE==1) {
+    ODIR="NewThresholdV5"
+    dx <- left_join(dx,newThetas %>%
+        select(Sample,Spot,thetaNew)) %>%
+        mutate(SOX10_PositiveNew=case_when(
+            SOX10_Intensity>thetaNew & superNeg ~ 1,
+            SOX10_Intensity>thetaNew ~ SOX10_Positive,
+            T ~ 0))
+} else if(RULE==2) {
+    ODIR="NewThresholdV5r2"
+    dx <- left_join(dx,newThetas %>%
+        select(Sample,Spot,thetaNew)) %>%
+        mutate(SOX10_PositiveNew=case_when(
+            SOX10_Intensity>thetaNew ~ 1,
+            T ~ 0))
+} else {
+    stop("INVALID RULE")
+}
+
+dir.create(ODIR, showWarnings = FALSE)
 
 tbl=dx %>% count(SOX10_Positive,SOX10_PositiveNew,superNeg,SOX10_Intensity>thetaNew)
 
@@ -68,7 +84,6 @@ dd.new=left_join(dd,dgx,by=c("UUID", "Marker", "Sample", "SPOT", "ValueType")) %
     mutate(Value=ifelse(!is.na(Value.New),Value.New,Value)) %>%
     select(-Value.New)
 
-ODIR="NewThresholdV5"
 outFile=file.path(ODIR,gsub(".rda","___reThresRule1.rda",basename(args[1])))
 saveRDS(dd.new,outFile,compress=T)
 
