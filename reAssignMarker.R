@@ -19,9 +19,9 @@ positiveMarkers=c("S100B")
 identMarkers=getIdentityMarkers()
 negativeMarkers=setdiff(identMarkers,c(targetMarker,positiveMarkers))
 allMarkers="CD20:CD8:CD3:PCK26"
+thresholdDir="NewThresholdV5/SOX10_S100B/CD20,CD8,CD3,PCK26"
 
 getNewThetaTable <- function(sampleID,targetMarker,allNegMarkers) {
-    thresholdDir="NewThresholdV4/SOX10_S100B/CD20,CD8,CD3,PCK26"
     thetaFile=file.path(thresholdDir,cc("rocStats",sampleID,targetMarker,".csv"))
     xx=read_csv(thetaFile)
     baseTbl=xx %>% select(Sample,Spot,thetaOrig,numDAPI,numPOS) %>% distinct()
@@ -33,20 +33,32 @@ getNewThetaTable <- function(sampleID,targetMarker,allNegMarkers) {
     newThetaTable
 }
 
+spreadMarkerTbl <- function(din) {
+    din %>%
+        filter(Marker %in% identMarkers) %>%
+        select(Sample,SPOT,UUID,Marker,ValueType,Value) %>%
+        rename(Spot=SPOT) %>%
+        unite(MVT,Marker,ValueType) %>%
+        spread(MVT,Value) %>%
+        select(-matches("_Intensity"),SOX10_Intensity)
+}
+
 newThetas=getNewThetaTable(sampleID,targetMarker,allMarkers)
 
-dx=dd %>%
-    filter(Marker %in% identMarkers) %>%
-    select(Sample,SPOT,UUID,Marker,ValueType,Value) %>%
-    rename(Spot=SPOT) %>%
-    unite(MVT,Marker,ValueType) %>%
-    spread(MVT,Value) %>%
-    select(-matches("_Intensity"),SOX10_Intensity)
+# dx=dd %>%
+#     filter(Marker %in% identMarkers) %>%
+#     select(Sample,SPOT,UUID,Marker,ValueType,Value) %>%
+#     rename(Spot=SPOT) %>%
+#     unite(MVT,Marker,ValueType) %>%
+#     spread(MVT,Value) %>%
+#     select(-matches("_Intensity"),SOX10_Intensity)
+
+dx <- spreadMarkerTbl(dd)
 
 dx$superNeg=dx %>% select(cc(negativeMarkers,"Positive")) %>% apply(.,1,function(x){all(x==0)})
-dx=dx %>% select(-matches("_Positive"),SOX10_Positive)
+dx=dx %>% select(-matches("_Positive"),SOX10_Positive,superNeg)
 
-RULE=2
+RULE=1
 
 if(RULE==1) {
     ODIR="NewThresholdV5"
@@ -87,6 +99,19 @@ dd.new=left_join(dd,dgx,by=c("UUID", "Marker", "Sample", "SPOT", "ValueType")) %
 outFile=file.path(ODIR,gsub(".rda","___reThresRule1.rda",basename(args[1])))
 saveRDS(dd.new,outFile,compress=T)
 
+dx <- dx %>% mutate(State=paste0(SOX10_Positive.Orig,">",SOX10_Positive))
+
+stats <- dx %>%
+    group_by(Sample,Spot) %>%
+    count(State) %>%
+    mutate(n=ifelse(State=="1>0",-n,n)) %>%
+    mutate(PCT=n/sum(n))
+
+sampleName <- dx %>% distinct(Sample) %>% pull
+
+outFile <- file.path(ODIR,cc("reThreshold_SOX10_v5",sampleName,"Stats.csv"))
+write_csv(stats,outFile)
+
 dCell = dd %>%
     select(UUID,Sample,XMin,XMax,YMin,YMax,SPOT) %>%
     distinct %>%
@@ -115,7 +140,7 @@ for(sampleName in sampleNames) {
     bbPlot$Y1=bbPlot$Y1
 
     if(!interactive()) {
-        pdf(file=file.path(ODIR,cc("reThreshold_SOX10_v4",sampleName,".pdf")),width=11,height=8.5)
+        pdf(file=file.path(ODIR,cc("reThreshold_SOX10_v5",sampleName,".pdf")),width=11,height=8.5)
     } else {
         i=1
         stop("BREAK-A")
@@ -128,10 +153,14 @@ for(sampleName in sampleNames) {
 
         ds=dCell %>%
             filter(SPOT==spot & Sample==sampleName) %>%
-            mutate(reThresFlag=SOX10_Positive.Orig+2*SOX10_Positive+1)
+            mutate(reThresFlag=2*SOX10_Positive.Orig+4*SOX10_Positive+ifelse(superNeg,1,0)+1)
 
-        colThres=c("#BEBEBE","#2778c4","#d41a17","#e3a19e")
-        cexThres=c(.5,1,1,.75)
+        colThres=c("#BEBEBE","#BEBEBE",
+                    "#17d479","#1772d4",
+                    "#d41a17","#d41a17",
+                    "#e3a19e","#e3a19e")
+
+        cexThres=c(.5,.5,1,1,1,1,.75,.75)
 
         nCells=nrow(ds)
         nOrigPos=sum(ds$SOX10_Positive.Orig==1)
