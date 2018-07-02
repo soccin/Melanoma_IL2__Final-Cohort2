@@ -19,10 +19,10 @@ positiveMarkers=c("S100B")
 identMarkers=getIdentityMarkers()
 negativeMarkers=setdiff(identMarkers,c(targetMarker,positiveMarkers))
 allMarkers="CD20:CD8:CD3:PCK26"
-thresholdDir="NewThresholdV5/SOX10_S100B/CD20,CD8,CD3,PCK26"
+thresholdFilesDir="NewThresholdV5r1/SOX10_S100B/CD20,CD8,CD3,PCK26"
 
 getNewThetaTable <- function(sampleID,targetMarker,allNegMarkers) {
-    thetaFile=file.path(thresholdDir,cc("rocStats",sampleID,targetMarker,".csv"))
+    thetaFile=file.path(thresholdFilesDir,cc("rocStats",sampleID,targetMarker,".csv"))
     xx=read_csv(thetaFile)
     baseTbl=xx %>% select(Sample,Spot,thetaOrig,numDAPI,numPOS) %>% distinct()
     reSetThres=xx %>%
@@ -58,7 +58,7 @@ dx <- spreadMarkerTbl(dd)
 dx$superNeg=dx %>% select(cc(negativeMarkers,"Positive")) %>% apply(.,1,function(x){all(x==0)})
 dx=dx %>% select(-matches("_Positive"),SOX10_Positive,superNeg)
 
-RULE=1
+RULE=2
 
 if(RULE==1) {
     ODIR="NewThresholdV5"
@@ -143,7 +143,7 @@ for(sampleName in sampleNames) {
         pdf(file=file.path(ODIR,cc("reThreshold_SOX10_v5",sampleName,".pdf")),width=11,height=8.5)
     } else {
         i=1
-        stop("BREAK-A")
+        #stop("BREAK-A")
     }
 
     for(i in seq(spots)) {
@@ -176,7 +176,7 @@ for(sampleName in sampleNames) {
         mtext(rethresStats,3,0)
 
         points(ds$X,ds$Y,pch=16,col=colThres[1],cex=cexThres[1])
-        drawBoundariesForSample(sampleName)
+        drawBoundariesForSample(sampleName,spot)
 
         #########################################################################################
         #

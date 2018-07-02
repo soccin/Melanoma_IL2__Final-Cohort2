@@ -1,15 +1,19 @@
-
 spreadMarkerTbl <- function(din) {
-    din %>%
+    dout=din %>%
         filter(Marker %in% identMarkers) %>%
         select(Sample,SPOT,UUID,Marker,ValueType,Value) %>%
         rename(Spot=SPOT) %>%
         unite(MVT,Marker,ValueType) %>%
         spread(MVT,Value) %>%
-        select(-matches("_Intensity")) %>%
-        select(cc(negativeMarkers,"Positive")) %>%
-        apply(.,1,function(x){all(x==0)}) %>%
-        select(-matches("_Positive"),SOX10_Positive,superNeg)
+        select(-matches("_Intensity"),SOX10_Intensity)
+
+        dout$superNeg=dout %>%
+            select(cc(negativeMarkers,"Positive")) %>%
+            apply(.,1,function(x){all(x==0)})
+
+        dout %>%
+            select(-matches("_Positive"),SOX10_Positive,superNeg)
+
 }
 
 getNewThetaTable <- function(sampleID,targetMarker,allNegMarkers) {
@@ -43,6 +47,9 @@ reassignSOX10 <- function(dx,RULE=1) {
     } else {
         stop("INVALID RULE")
     }
+
+    dx <- dx %>% rename(SOX10_Positive.Orig=SOX10_Positive,SOX10_Positive=SOX10_PositiveNew)
+
     dx %>% mutate(State=paste0(SOX10_Positive.Orig,">",SOX10_Positive))
 }
 
@@ -52,6 +59,10 @@ getCellTable <- function(dd) {
         distinct %>%
         mutate(X=(XMax+XMin)/2,Y=-(YMax+YMin)/2)
 }
+
+source("HaloSpatial/spatialV3.R")
+source("HaloSpatial/plot.R")
+source("HaloSpatial/halo.R")
 
 plotSpatialCellReassign <- function(dCell) {
 
@@ -73,7 +84,7 @@ plotSpatialCellReassign <- function(dCell) {
         cexThres=c(.5,.5,1,1,1,1,.75,.75)
 
         sampleName <- dCell %>% distinct(Sample) %>% pull
-        spot <- dCell %>% distinct(SPOT) %>% pull
+        spot <- dCell %>% distinct(Spot) %>% pull
 
         ds=dCell %>%
             mutate(reThresFlag=2*SOX10_Positive.Orig+4*SOX10_Positive+ifelse(superNeg,1,0)+1)
@@ -92,7 +103,7 @@ plotSpatialCellReassign <- function(dCell) {
         mtext(rethresStats,3,0)
 
         points(ds$X,ds$Y,pch=16,col=colThres[1],cex=cexThres[1])
-        drawBoundariesForSample(sampleName)
+        drawBoundariesForSample(sampleName,spot)
 
         #########################################################################################
         #
@@ -107,9 +118,5 @@ plotSpatialCellReassign <- function(dCell) {
 
 }
 
-# newThetas=getNewThetaTable(sampleID,targetMarker,allMarkers)
-# dx <- spreadMarkerTbl(dd)
-# dx <- reassignSOX10(dx)
+source("getCellTypes.R")
 
-# dCell <- getCellTable(dd)
-# dCell <- full_join(dCell,dx)
