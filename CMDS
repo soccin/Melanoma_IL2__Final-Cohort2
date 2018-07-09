@@ -1,0 +1,19 @@
+#!/bin/bash
+
+ls data/byrne/mel_*rda \
+    | xargs -n 1 bsub -o LSF/ -J RETHRES -R "rusage[mem=16]" -We 119 \
+        Rscript --no-save reThresholdV5.R S100B
+bSync RETHRES
+
+ls data/byrne/mel_*rda \
+    | xargs -n 1 bsub -o LSF/ -J THETA0 -R "rusage[mem=16]" -We 119 \
+        Rscript --no-save reAssignMarker.R
+bSync THETA0
+
+ls NewThresholdV5r1/*rda \
+    | xargs -n 1 bsub -o LSF/ -J COMBO -R "rusage[mem=16]" -We 119 \
+        Rscript --no-save getCellTypeCombinations.R
+
+bSync COMBO
+
+Rscript --no-save joinCountTables.R cellTypeCombination*csv
