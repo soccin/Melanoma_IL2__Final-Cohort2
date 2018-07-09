@@ -26,7 +26,7 @@ args=args[-1]
 markersToTest=scan(cc("reThresholdMarkers_",markerPos,".txt"),"")
 markersToTestStr=paste0(markersToTest,collapse=",")
 
-oDir=file.path("NewThresholdV5",cc(markerPos,dblPosMarker),markersToTestStr)
+oDir=file.path("NewThresholdV5r1",cc(markerPos,dblPosMarker),markersToTestStr)
 dir.create(oDir,showWarnings=F,recursive=T)
 
 i=1
