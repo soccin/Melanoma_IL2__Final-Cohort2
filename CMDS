@@ -1,4 +1,5 @@
 #!/bin/bash
+rm -rf LSF/
 
 ls data/byrne/mel_*rda \
     | xargs -n 1 bsub -o LSF/ -J RETHRES -R "rusage[mem=16]" -We 119 \

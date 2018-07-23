@@ -58,7 +58,7 @@ dx <- spreadMarkerTbl(dd)
 dx$superNeg=dx %>% select(cc(negativeMarkers,"Positive")) %>% apply(.,1,function(x){all(x==0)})
 dx=dx %>% select(-matches("_Positive"),SOX10_Positive,superNeg)
 
-RULE=1
+RULE=2
 
 if(RULE==1) {
     ODIR="NewThresholdV5r1"
